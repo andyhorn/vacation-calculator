@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="./bootstrap.min.css">
+        <script src="vue.min.js" type="text/javascript"></script>
+        <title>PTO Calculator</title>
+    </head>
+    <body class="bg-dark text-light">
+        <div class="container" id="app">
+            <h1 class="text-center my-5">PTO Calculator</h1>
+            <div class="row mb-3">
+                <div class="col">
+                    <label for="period-days">Period length (days)</label>
+                    <div class="input-group">
+                        <input id="period-days" class="form-control" type="number" v-model="numDaysInPeriod" />
+                    </div>
+                </div>
+                <div class="col">
+                    <label for="period-hours">Hours per period</label>
+                    <div class="input-group">
+                        <input id="period-hours" class="form-control" type="number" v-model="hoursPerPeriod"/>
+                    </div>
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col">
+                    <label for="period-start">Current period start</label>
+                    <div class="input-group">
+                        <input id="period-start" class="form-control" type="date" v-model="currentPeriodStart"/>
+                    </div>
+                </div>
+                <div class="col">
+                    <label for="current-hours">Current hours</label>
+                    <div class="input-group">
+                        <input id="current-hours" class="form-control" type="number" v-model="currentHours"/>
+                    </div>
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col">
+                    <label for="additional-hours">Additional hours</label>
+                    <div class="input-group">
+                        <input id="additional-hours" class="form-control" type="number" v-model="additionalHours"/>
+                    </div>
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col">
+                    <label for="target-date">Target date</label>
+                    <div class="input-group">
+                        <input id="target-date" class="form-control" type="date" v-model="targetDate" min="currentPeriodStart"
+                            :disabled="isTargetDateDisabled" />
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-5 mb-3">
+                <div class="col text-center">
+                    <h3>Totals</h3>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col text-center">
+                    <p>Current: {{ currentHoursString }}</p>
+                </div>
+                <div class="col text-center">
+                    <p>Accrued: {{ accruedHoursString }}</p>
+                </div>
+                <div class="col text-center">
+                    <p>Hours: {{ totalPtoHoursString }}</p>
+                </div>
+                <div class="col text-center">
+                    <p>Days: {{ totalPtoDaysString }}</p>
+                </div>
+            </div>
+        </div>
+        <script>
+            function dateDiff(dayOne, dayTwo) {
+                const diffTime = Math.abs(dayTwo - dayOne);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                return diffDays;
+            }
+
+            function isSameDate(dateOne, dateTwo) {
+                return dateOne.getYear() == dateTwo.getYear() &&
+                    dateOne.getMonth() == dateTwo.getMonth() &&
+                    dateOne.getDate() == dateTwo.getDate();
+            }
+
+            function hoursToDays(hours) {
+                return hours / 8.0;
+            }
+
+            const App = new Vue({
+                el: '#app',
+                data: {
+                    currentPeriodStart: null,
+                    numDaysInPeriod: 14,
+                    currentHours: 0,
+                    hoursPerPeriod: 0,
+                    targetDate: null,
+                    additionalHours: 0,
+                },
+                methods: {
+                },
+                computed: {
+                    today: () => new Date(),
+                    isTargetDateDisabled() {
+                        return this.currentPeriodStart == null ||
+                            this.numDaysInPeriod == 0 ||
+                            this.hoursPerPeriod == 0;
+                    },
+                    showTotalHours() {
+                        return !this.isTargetDateDisabled && this.targetDate != null;
+                    },
+                    totalPtoHours() {
+                        const currentHours = Number(this.currentHours) + Number(this.additionalHours);
+
+                        if (this.currentPeriodStart == null || this.targetDate == null) {
+                            return currentHours;
+                        }
+
+                        const numDaysIntoCurrentPeriod = isSameDate(this.today, new Date(this.currentPeriodStart))
+                            ? 0 : dateDiff(this.today, new Date(this.currentPeriodStart));
+                        const numDaysRemainingInCurrentPeriod = this.numDaysInPeriod - numDaysIntoCurrentPeriod;
+                        const endOfPeriod = this.today.setDate(this.today.getDate() + numDaysRemainingInCurrentPeriod);
+
+                        if (endOfPeriod > this.targetDate) {
+                            return currentHours;
+                        }
+
+                        const numPeriodsUntilTargetDate = Math.floor(dateDiff(new Date(this.targetDate), endOfPeriod) / this.numDaysInPeriod) + 1;
+                        const hoursToBeAccrued = numPeriodsUntilTargetDate * this.hoursPerPeriod;
+
+                        return Number(hoursToBeAccrued) + Number(currentHours);
+                    },
+                    currentHoursString() {
+                        return Number(Number(this.currentHours) + Number(this.additionalHours)).toFixed(2);
+                    },
+                    accruedHoursString() {
+                        return Number(this.totalPtoHours - Number(this.currentHours) - Number(this.additionalHours)).toFixed(2);
+                    },
+                    totalPtoHoursString() {
+                        return Number(this.totalPtoHours).toFixed(2);
+                    },
+                    totalPtoDaysString() {
+                        return Number(hoursToDays(this.totalPtoHours)).toFixed(2);
+                    }
+                }
+            });
+        </script>
+    </body>
+</html>
